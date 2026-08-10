@@ -5,9 +5,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
-# Force the cloud computer to ignore Node version checks entirely
+# Completely forces the cloud runner onto Node 24 structures
 env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   build:
@@ -15,12 +15,10 @@ jobs:
 
     steps:
     - name: Checkout Source Code
-      uses: actions/checkout@v4
-      with:
-        clean: true
+      uses: actions/checkout@v4.2.2
 
     - name: Set up Clean Python Runtime
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v5.4.0
       with:
         python-version: '3.11'
 
@@ -29,19 +27,34 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y libsqlite3-dev lldd scons ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev openjdk-17-jdk
 
-    - name: Install Buildozer Core Pack
+    - name: Install Buildozer and Toolchain Core
       run: |
         pip install --upgrade pip
-        pip install "buildozer==1.5.0"
-        pip install appdirs sh colorama jinja2 six
+        pip install "buildozer==1.5.0" appdirs sh colorama jinja2 six Cython
 
-    - name: Execute APK Compilation
+    - name: Auto-Generate Clean Buildozer Spec and Compile
       env:
         BUILDOZER_ALLOW_KIVY_IED_ROOT: "1"
       run: |
-        # Override requirements inside buildozer.spec to guarantee zero local crashes
-        sed -i 's/requirements = .*/requirements = python3,kivy/g' buildozer.spec
-        # Force compilation
+        # 1. Automatically generate a brand new spec file in the cloud directory
+        buildozer init
+        
+        # 2. Configure metadata parameters cleanly for STK's Astro
+        sed -i 's/title = My Application/title = STK Astro/g' buildozer.spec
+        sed -i 's/package.name = myapp/package.name = stk_astro/g' buildozer.spec
+        sed -i 's/package.domain = org.test/package.domain = com.stk/g' buildozer.spec
+        
+        # 3. Find your main python file and force it to be packaged as the main execution block
+        # (Assuming your script name contains Astro)
+        SRC_FILE=$(ls | grep -E "Astro.*\.py" | head -n 1)
+        if [ -n "$SRC_FILE" ]; then
+          mv "$SRC_FILE" main.py
+        fi
+        
+        # 4. Enforce strict stable requirements targeting Kivy engine builds
+        sed -i 's/requirements = .*/requirements = python3,kivy,certifi,chardet,filetype,idna,requests,six,urllib3,charset-normalizer/g' buildozer.spec
+        
+        # 5. Run the cloud compiler sequence
         buildozer -v android debug
 
     - name: Upload Final APK Asset
