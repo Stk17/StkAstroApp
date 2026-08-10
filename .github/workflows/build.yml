@@ -1,0 +1,43 @@
+name: Build STK Astro APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    - name: Set up Clean Python Runtime
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install System Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsqlite3-dev lldd scons ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev zlib1g-dev openjdk-17-jdk
+
+    - name: Install Buildozer Core Pack
+      run: |
+        pip install --upgrade pip
+        pip install "buildozer==1.5.0"
+        pip install appdirs sh colorama jinja2 six
+
+    - name: Execute APK Compilation
+      run: |
+        # Adjust buildozer requirements dynamically to bypass local blocks
+        sed -i 's/requirements = .*/requirements = python3,kivy/g' buildozer.spec
+        # Compile the application package
+        buildozer -v android debug
+
+    - name: Upload Final APK Asset
+      uses: actions/upload-artifact@v4
+      with:
+        name: STK-Astro-Galaxy-S25-Installer
+        path: bin/*.apk
