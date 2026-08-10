@@ -7,14 +7,14 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04  # Upgrades the cloud engine runner to the newest, stable OS layer
 
     steps:
     - name: Checkout Source Code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.2.2  # Fixes the Node.js runner warning explicitly
 
     - name: Set up Clean Python Runtime
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v5.4.0  # Upgrades the python runner step package natively
       with:
         python-version: '3.11'
 
@@ -31,9 +31,11 @@ jobs:
 
     - name: Execute APK Compilation
       run: |
-        # Adjust buildozer requirements dynamically to bypass local blocks
+        # Inject an override switch to ensure it bypasses local root block issues
+        export BUILDOZER_ALLOW_KIVY_IED_ROOT=1
+        # Dynamically targets core kivy templates for standard builds
         sed -i 's/requirements = .*/requirements = python3,kivy/g' buildozer.spec
-        # Compile the application package
+        # Builds your exact script files directly in the cloud
         buildozer -v android debug
 
     - name: Upload Final APK Asset
